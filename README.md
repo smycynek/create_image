@@ -8,3 +8,9 @@ Usage:  `make_image.py <filename>`
 
 
 ` ./make_image.py /bin/bash # creates a jpeg from your bash shell executable`
+
+
+
+
+![Image of bash](./bash_CMYK.jpg)
+
