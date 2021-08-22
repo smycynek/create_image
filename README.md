@@ -13,4 +13,5 @@ Usage:  `make_image.py <filename>`
 
 
 ![Image of bash](./bash_CMYK.jpg)
+![Image of bash thumbnail](./bash_thm_CMYK.jpg)
 
