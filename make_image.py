@@ -8,21 +8,27 @@ from PIL.ImageOps import scale
 
 import ntpath
 
+ALPHA_VALUE = 80
+THUMBNAIL_DIMENSION = 15
+THUMNAIL_THRESHHOLD = 150
+
 def make_buffer(array_from_file, buffer_extra=0):
     file_length = len(array_from_file)
-    dimension = math.floor(math.sqrt(file_length))+buffer_extra
-    extra = dimension*dimension - file_length
+    enclosing_large_dimension = math.floor(math.sqrt(file_length))+buffer_extra
+    extra = enclosing_large_dimension*enclosing_large_dimension - file_length
     new_buffer = np.append(array_from_file, np.empty(extra, np.uintc))
-    new_buffer = np.reshape(new_buffer, (dimension, dimension))
-    new_file = im.fromarray(new_buffer, mode="CMYK")
-    print(f"file length: {file_length} 32-bit words")
-    print(f"image size: {dimension} x {dimension} pixels (32 bits per pixel)")
-    return new_file, dimension
+    new_buffer = np.reshape(new_buffer, (enclosing_large_dimension, enclosing_large_dimension))
+    new_file = im.fromarray(new_buffer, mode="CMYK").convert('RGB')
+    if buffer_extra:
+        print(f"File length: {file_length} 32-bit words")
+        print(f"Target image size: {enclosing_large_dimension} x {enclosing_large_dimension} pixels (32 bits per pixel)")
+    return new_file, enclosing_large_dimension
 
 def scale_and_save(data, scale_factor, name):
-    new_file = f"./{name}_CMYK.jpg"
+    new_file = f"./{name}.png"
     data = scale(data, scale_factor, im.BOX)
     data.save(new_file, quality="maximum")
+    return data
 
 if __name__ == "__main__":
     if len(sys.argv) !=2:
@@ -30,15 +36,22 @@ if __name__ == "__main__":
         exit(1)
     filename = sys.argv[1]
     print(f"input: {filename}")
-
+    filename_bare= ntpath.basename(filename)
+    print("Reading input...")
     array_file = np.fromfile(filename, dtype=np.uintc)
-    new_image, dimension = make_buffer(array_file,1)
-    scale_and_save(new_image, 1, ntpath.basename(filename))
+    new_image, enclosing_large_dimension = make_buffer(array_file,1)
+    print("Saving large image...")
+    large_file = scale_and_save(new_image, 1, filename_bare)
 
-    if dimension > 200:
-        scale_factor = dimension/15
-        thumb_array = array_file[:225]
-        new_image, _ = make_buffer(thumb_array)
-        scale_and_save(new_image, scale_factor, ntpath.basename(filename + "_thm"))
-
-
+    if enclosing_large_dimension >= THUMNAIL_THRESHHOLD: # Only make thumnail and composite for larger images
+        print("Processing section...")
+        scale_factor = enclosing_large_dimension/THUMBNAIL_DIMENSION
+        section_array = array_file[:THUMBNAIL_DIMENSION*THUMBNAIL_DIMENSION]
+        section_image, _ = make_buffer(section_array)
+        print("Saving section...")
+        section_file = scale_and_save(section_image, scale_factor, filename_bare + "_section")
+        print("Saving composite...")
+        section_file.putalpha(ALPHA_VALUE)
+        composite = large_file.convert('RGBA')
+        composite.paste(section_file, (0,0), section_file.convert('RGBA'))
+        composite.save(f"./{filename_bare}_composite.png")
