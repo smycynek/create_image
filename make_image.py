@@ -10,7 +10,8 @@ import ntpath
 
 ALPHA_VALUE = 80
 THUMBNAIL_DIMENSION = 15
-THUMNAIL_THRESHHOLD = 150
+THUMNAIL_THRESHHOLD = 100
+UPSCALE_DIMENSION = 4000
 
 def make_buffer(array_from_file, buffer_extra=0):
     file_length = len(array_from_file)
@@ -31,10 +32,14 @@ def scale_and_save(data, scale_factor, name):
     return data
 
 if __name__ == "__main__":
-    if len(sys.argv) !=2:
-        print("usage:  make_image.py <filename>")
+    if len(sys.argv) < 2:
+        print("usage:  make_image.py <filename> no_upscale (optional)")
         exit(1)
     filename = sys.argv[1]
+    upscale = True
+    if len(sys.argv) > 2:
+        upscale = False
+
     print(f"input: {filename}")
     filename_bare= ntpath.basename(filename)
     print("Reading input...")
@@ -53,5 +58,9 @@ if __name__ == "__main__":
         print("Saving composite...")
         section_file.putalpha(ALPHA_VALUE)
         composite = large_file.convert('RGBA')
+
         composite.paste(section_file, (0,0), section_file.convert('RGBA'))
+        if upscale:
+            composite = scale(composite, UPSCALE_DIMENSION/enclosing_large_dimension, im.BOX)
+
         composite.save(f"./{filename_bare}_composite.png")
